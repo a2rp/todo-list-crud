@@ -1,5 +1,7 @@
 # To-Do List (React + styled-components)
 
+![alt text](image.png)
+
 **Live Demo:** https://a2rp.github.io/todo-list-crud/
 
 A small, production-friendly To-Do app built with **React + styled-components** (frontend only). Supports CRUD, categories, due dates, search, sort, LocalStorage, and a custom confirm modal—kept transparent to blend with a black-themed website.
@@ -18,13 +20,10 @@ A small, production-friendly To-Do app built with **React + styled-components** 
 ## Local Install
 
 ```bash
-# 1) Clone the repo
 git clone https://github.com/a2rp/todo-list-crud.git
 cd todo-list-crud
 
-# 2) Install dependencies
 npm i
 
-# 3) Run dev server
 npm run dev
 ```
