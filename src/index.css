@@ -1,35 +1,179 @@
-@import url("https://fonts.googleapis.com/css2?family=Antonio:wght@100..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;600;700&display=swap");
 
 *,
-::before,
-::after {
-    padding: 0;
+*::before,
+*::after {
     margin: 0;
+    padding: 0;
     box-sizing: border-box;
 }
 
-html,
-body {
-    width: 100%;
-    height: 100%;
+:root {
+    color-scheme: dark;
+
+    --background: #050505;
+    --background-soft: #080808;
+    --background-raised: #0b0b0b;
+
+    --card: #0d0d0d;
+    --card-soft: #111111;
+    --card-hover: #141414;
+
+    --heading: #f5f5f5;
+    --text: #a8a8a8;
+    --text-strong: #cfcfcf;
+    --muted: #666666;
+
+    --border: #222222;
+    --border-soft: #191919;
+    --border-strong: #3c3c3c;
+    --border-bright: #555555;
+
+    --accent: #fe4500;
+
+    --accent-soft: rgba(254, 69, 0, 0.08);
+
+    --accent-medium: rgba(254, 69, 0, 0.14);
+
+    --accent-border: rgba(254, 69, 0, 0.48);
+
+    --accent-border-strong: rgba(254, 69, 0, 0.72);
+
+    --danger: #ff6666;
+
+    --danger-soft: rgba(255, 102, 102, 0.07);
+
+    --danger-border: rgba(255, 102, 102, 0.34);
+
+    --success: #73d79a;
+
+    --shadow-xs: 0 5px 16px rgba(0, 0, 0, 0.2);
+
+    --shadow-sm: 0 10px 28px rgba(0, 0, 0, 0.28);
+
+    --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.36);
+
+    --shadow-lg: 0 28px 75px rgba(0, 0, 0, 0.48);
+
+    --shadow-accent: 0 12px 32px rgba(254, 69, 0, 0.1);
+
+    --transition-fast: 150ms ease;
+
+    --transition: 190ms ease;
+
+    --transition-slow: 240ms ease;
 }
 
 html {
-    scroll-behavior: smooth !important;
+    min-width: 320px;
+
+    background: var(--background);
+
+    scroll-behavior: smooth;
+    scroll-padding-top: 90px;
+
+    scrollbar-width: thin;
+    scrollbar-color: #343434 var(--background);
 }
 
 body {
-    background-color: #000;
-    color: #aaa;
-    font-family: "Poppins", sans-serif;
-    font-size: 13px;
+    min-width: 320px;
+    min-height: 100vh;
+
+    color: var(--text);
+
+    background:
+        radial-gradient(
+            circle at 8% 0%,
+            rgba(254, 69, 0, 0.035),
+            transparent 28rem
+        ),
+        radial-gradient(
+            circle at 92% 15%,
+            rgba(255, 255, 255, 0.018),
+            transparent 30rem
+        ),
+        var(--background);
+
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+
+    font-size: 16px;
+    line-height: 1.5;
+
+    text-rendering: optimizeLegibility;
+
+    -webkit-font-smoothing: antialiased;
+
+    -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    font-family: "Antonio", sans-serif;
+#root {
+    min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+img,
+svg {
+    display: block;
+
+    max-width: 100%;
+}
+
+a {
+    color: inherit;
+}
+
+::selection {
+    color: #ffffff;
+    background: var(--accent);
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #444444, #292929);
+
+    border: 2px solid var(--background);
+
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #555555, #343434);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+
+        transition-duration: 0.01ms !important;
+
+        animation-duration: 0.01ms !important;
+
+        animation-iteration-count: 1 !important;
+    }
 }

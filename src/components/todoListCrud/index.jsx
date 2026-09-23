@@ -1,32 +1,67 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+
+import {
+    FiCalendar,
+    FiCheck,
+    FiCheckCircle,
+    FiDatabase,
+    FiEdit2,
+    FiList,
+    FiPlus,
+    FiSearch,
+    FiTag,
+    FiTrash2,
+    FiX,
+} from "react-icons/fi";
+
+import ConfirmModal from "../confirmModal";
+
 import { Styled } from "./styled";
 
 const STORAGE_KEY = "todo-list.v1";
 
-const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+const uid = () =>
+    `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 
 const todayISO = () => {
-    const t = new Date();
-    const yyyy = t.getFullYear();
-    const mm = String(t.getMonth() + 1).padStart(2, "0");
-    const dd = String(t.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+    const today = new Date();
+
+    const year = today.getFullYear();
+
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+
+    const day = String(today.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
 };
 
-const formatNice = (iso) => {
-    if (!iso) return "No due date";
-    const d = new Date(`${iso}T00:00:00`);
-    return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+const formatDate = (iso) => {
+    if (!iso) {
+        return "No due date";
+    }
+
+    const date = new Date(`${iso}T00:00:00`);
+
+    return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    });
 };
 
 const daysUntil = (iso) => {
-    if (!iso) return null;
-    const a = new Date(`${iso}T00:00:00`);
-    const b = new Date(`${todayISO()}T00:00:00`);
-    return Math.round((a - b) / (1000 * 60 * 60 * 24));
+    if (!iso) {
+        return null;
+    }
+
+    const dueDate = new Date(`${iso}T00:00:00`);
+
+    const today = new Date(`${todayISO()}T00:00:00`);
+
+    return Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
 };
 
-const load = () => {
+const loadTodos = () => {
     try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? [];
     } catch {
@@ -34,374 +69,619 @@ const load = () => {
     }
 };
 
-export default function TodoListCrud() {
-    const [todos, setTodos] = useState(load);
+const TodoListCrud = () => {
+    const [todos, setTodos] = useState(loadTodos);
+
     const [title, setTitle] = useState("");
+
     const [category, setCategory] = useState("");
+
     const [due, setDue] = useState("");
+
     const [query, setQuery] = useState("");
-    const [catFilter, setCatFilter] = useState("All");
-    const [sortBy, setSortBy] = useState("created"); // created | dueAsc | dueDesc
-    const [editing, setEditing] = useState(null); // id being edited
 
-    // --- Confirm dialog state ---
+    const [categoryFilter, setCategoryFilter] = useState("All");
+
+    const [sortBy, setSortBy] = useState("created");
+
+    const [editing, setEditing] = useState(null);
+
     const [confirm, setConfirm] = useState(null);
-    // shape: { title, message, confirmText, cancelText, tone, onConfirm }
-
-    const askConfirm = (opts) => {
-        setConfirm({
-            title: "Are you sure?",
-            message: "",
-            confirmText: "Confirm",
-            cancelText: "Cancel",
-            tone: "default", // or "danger"
-            ...opts,
-        });
-    };
-
-    const handleConfirm = () => {
-        const fn = confirm?.onConfirm;
-        setConfirm(null);
-        if (typeof fn === "function") fn();
-    };
-
-    useEffect(() => {
-        if (!confirm) return;
-        const onKey = (e) => {
-            if (e.key === "Escape") setConfirm(null);
-            if (e.key === "Enter") handleConfirm();
-        };
-        document.addEventListener("keydown", onKey);
-        return () => document.removeEventListener("keydown", onKey);
-    }, [confirm]);
-    // --- /Confirm dialog state ---
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
     }, [todos]);
 
+    const openCount = todos.filter((todo) => !todo.done).length;
+
+    const completedCount = todos.filter((todo) => todo.done).length;
+
     const categories = useMemo(() => {
-        const set = new Set(todos.map(t => t.category).filter(Boolean));
-        return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+        const values = new Set(
+            todos.map((todo) => todo.category).filter(Boolean),
+        );
+
+        return [
+            "All",
+            ...Array.from(values).sort((a, b) => a.localeCompare(b)),
+        ];
     }, [todos]);
 
-    const filtered = useMemo(() => {
+    const filteredTodos = useMemo(() => {
         let list = todos;
 
-        if (catFilter !== "All") {
-            list = list.filter(t => (t.category || "").toLowerCase() === catFilter.toLowerCase());
+        if (categoryFilter !== "All") {
+            list = list.filter(
+                (todo) =>
+                    (todo.category || "").toLowerCase() ===
+                    categoryFilter.toLowerCase(),
+            );
         }
 
         if (query.trim()) {
-            const q = query.trim().toLowerCase();
-            list = list.filter(t =>
-                t.title.toLowerCase().includes(q) ||
-                (t.category || "").toLowerCase().includes(q)
+            const normalizedQuery = query.trim().toLowerCase();
+
+            list = list.filter(
+                (todo) =>
+                    todo.title.toLowerCase().includes(normalizedQuery) ||
+                    (todo.category || "")
+                        .toLowerCase()
+                        .includes(normalizedQuery),
             );
         }
 
         if (sortBy === "dueAsc") {
-            list = [...list].sort((a, b) => (a.due || "9999-12-31").localeCompare(b.due || "9999-12-31"));
-        } else if (sortBy === "dueDesc") {
-            list = [...list].sort((a, b) => (b.due || "0000-01-01").localeCompare(a.due || "0000-01-01"));
-        } else {
-            // created (newest first)
-            list = [...list].sort((a, b) => b.createdAt - a.createdAt);
+            return [...list].sort((a, b) =>
+                (a.due || "9999-12-31").localeCompare(b.due || "9999-12-31"),
+            );
         }
 
-        return list;
-    }, [todos, catFilter, query, sortBy]);
+        if (sortBy === "dueDesc") {
+            return [...list].sort((a, b) =>
+                (b.due || "0000-01-01").localeCompare(a.due || "0000-01-01"),
+            );
+        }
 
-    const addTodo = (e) => {
-        e.preventDefault();
-        const t = title.trim();
-        const c = category.trim();
-        if (!t) return;
+        return [...list].sort((a, b) => b.createdAt - a.createdAt);
+    }, [todos, categoryFilter, query, sortBy]);
+
+    const incompleteVisibleCount = filteredTodos.filter(
+        (todo) => !todo.done,
+    ).length;
+
+    const askConfirm = (options) => {
+        setConfirm({
+            title: "Are you sure?",
+            message: "",
+            confirmText: "Confirm",
+            cancelText: "Cancel",
+            tone: "default",
+            ...options,
+        });
+    };
+
+    const closeConfirm = () => {
+        setConfirm(null);
+    };
+
+    const handleConfirm = () => {
+        const action = confirm?.onConfirm;
+
+        setConfirm(null);
+
+        if (typeof action === "function") {
+            action();
+        }
+    };
+
+    const addTodo = (event) => {
+        event.preventDefault();
+
+        const cleanTitle = title.trim();
+
+        const cleanCategory = category.trim();
+
+        if (!cleanTitle) {
+            return;
+        }
+
+        const timestamp = Date.now();
 
         const newTodo = {
             id: uid(),
-            title: t,
-            category: c || "",
+            title: cleanTitle,
+            category: cleanCategory || "",
             due: due || "",
             done: false,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: timestamp,
+            updatedAt: timestamp,
         };
-        setTodos(prev => [newTodo, ...prev]);
+
+        setTodos((current) => [newTodo, ...current]);
+
         setTitle("");
         setCategory("");
         setDue("");
     };
 
     const toggleDone = (id) => {
-        setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done, updatedAt: Date.now() } : t));
+        setTodos((current) =>
+            current.map((todo) =>
+                todo.id === id
+                    ? {
+                          ...todo,
+                          done: !todo.done,
+                          updatedAt: Date.now(),
+                      }
+                    : todo,
+            ),
+        );
     };
 
     const removeTodo = (id) => {
-        setTodos(prev => prev.filter(t => t.id !== id));
+        setTodos((current) => current.filter((todo) => todo.id !== id));
     };
 
-    const startEdit = (id) => setEditing(id);
-
     const saveEdit = (id, patch) => {
-        setTodos(prev => prev.map(t => t.id === id ? { ...t, ...patch, updatedAt: Date.now() } : t));
+        setTodos((current) =>
+            current.map((todo) =>
+                todo.id === id
+                    ? {
+                          ...todo,
+                          ...patch,
+                          updatedAt: Date.now(),
+                      }
+                    : todo,
+            ),
+        );
+
         setEditing(null);
     };
 
-    const cancelEdit = () => setEditing(null);
-
-    const clearCompleted = () => setTodos(prev => prev.filter(t => !t.done));
+    const clearCompleted = () => {
+        setTodos((current) => current.filter((todo) => !todo.done));
+    };
 
     const markAllVisibleDone = () => {
-        const visibleIds = new Set(filtered.map(t => t.id));
-        setTodos(prev => prev.map(t => visibleIds.has(t.id) ? { ...t, done: true, updatedAt: Date.now() } : t));
+        const visibleIds = new Set(filteredTodos.map((todo) => todo.id));
+
+        setTodos((current) =>
+            current.map((todo) =>
+                visibleIds.has(todo.id)
+                    ? {
+                          ...todo,
+                          done: true,
+                          updatedAt: Date.now(),
+                      }
+                    : todo,
+            ),
+        );
     };
 
     return (
-        <Styled.Page>
+        <Styled.Page id="tasks">
             <Styled.Container>
-                <Styled.Header>
+                <Styled.Intro>
                     <div>
-                        <Styled.Title>To-Do List</Styled.Title>
-                        <Styled.Sub>Basic CRUD • Categories • Due Dates • LocalStorage</Styled.Sub>
-                    </div>
-                    <Styled.BadgeRow>
-                        <Styled.Badge>{todos.filter(t => !t.done).length} open</Styled.Badge>
-                        <Styled.Badge tone="muted">{todos.filter(t => t.done).length} done</Styled.Badge>
-                    </Styled.BadgeRow>
-                </Styled.Header>
+                        <Styled.Label>Local Task Manager</Styled.Label>
 
-                <Styled.Card as="form" onSubmit={addTodo}>
+                        <Styled.Title>
+                            Plan tasks.
+                            <span>Keep moving.</span>
+                        </Styled.Title>
+
+                        <Styled.Subtitle>
+                            Create, edit, complete, search, filter and organize
+                            tasks directly in your browser.
+                        </Styled.Subtitle>
+                    </div>
+
+                    <Styled.Stats>
+                        <div>
+                            <strong>{openCount}</strong>
+
+                            <span>Open</span>
+                        </div>
+
+                        <div>
+                            <strong>{completedCount}</strong>
+
+                            <span>Done</span>
+                        </div>
+
+                        <div>
+                            <strong>{todos.length}</strong>
+
+                            <span>Total</span>
+                        </div>
+                    </Styled.Stats>
+                </Styled.Intro>
+
+                <Styled.Card as="form" id="add-task" onSubmit={addTodo}>
+                    <Styled.CardHeader>
+                        <div>
+                            <Styled.SectionLabel>New Task</Styled.SectionLabel>
+
+                            <h2>Add something to your list</h2>
+                        </div>
+
+                        <FiPlus aria-hidden="true" />
+                    </Styled.CardHeader>
+
                     <Styled.FormRow>
                         <Styled.Input
                             placeholder="Task title *"
                             value={title}
-                            onChange={(e) => setTitle(e.target.value)}
+                            onChange={(event) => setTitle(event.target.value)}
                             aria-label="Task title"
                             required
                         />
+
                         <Styled.Input
-                            placeholder="Category (optional)"
+                            placeholder="Category"
                             value={category}
-                            onChange={(e) => setCategory(e.target.value)}
+                            onChange={(event) =>
+                                setCategory(event.target.value)
+                            }
                             aria-label="Category"
                             list="category-suggestions"
                         />
+
                         <datalist id="category-suggestions">
-                            {Array.from(new Set(todos.map(t => t.category).filter(Boolean))).map(c => (
-                                <option key={c} value={c} />
-                            ))}
+                            {categories
+                                .filter((item) => item !== "All")
+                                .map((item) => (
+                                    <option key={item} value={item} />
+                                ))}
                         </datalist>
+
                         <Styled.Input
                             type="date"
                             value={due}
-                            onChange={(e) => setDue(e.target.value)}
+                            onChange={(event) => setDue(event.target.value)}
                             aria-label="Due date"
                             min="1900-01-01"
                         />
-                        <Styled.PrimaryButton type="submit" disabled={!title.trim()}>Add</Styled.PrimaryButton>
+
+                        <Styled.PrimaryButton
+                            type="submit"
+                            disabled={!title.trim()}
+                        >
+                            <FiPlus aria-hidden="true" />
+                            Add Task
+                        </Styled.PrimaryButton>
                     </Styled.FormRow>
-                    {!title.trim() && <Styled.Helper>Tip: Title is required.</Styled.Helper>}
                 </Styled.Card>
 
                 <Styled.Toolbar>
-                    <Styled.RowWrap>
-                        <Styled.Select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} aria-label="Filter by category">
-                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                        </Styled.Select>
+                    <Styled.Filters>
+                        <Styled.Field>
+                            <FiTag aria-hidden="true" />
 
-                        <Styled.Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort">
-                            <option value="created">Newest</option>
-                            <option value="dueAsc">Due date ↑</option>
-                            <option value="dueDesc">Due date ↓</option>
-                        </Styled.Select>
+                            <Styled.Select
+                                value={categoryFilter}
+                                onChange={(event) =>
+                                    setCategoryFilter(event.target.value)
+                                }
+                                aria-label="Filter by category"
+                            >
+                                {categories.map((item) => (
+                                    <option key={item} value={item}>
+                                        {item}
+                                    </option>
+                                ))}
+                            </Styled.Select>
+                        </Styled.Field>
 
-                        <Styled.Input
-                            placeholder="Search title/category…"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            aria-label="Search"
-                        />
-                    </Styled.RowWrap>
+                        <Styled.Field>
+                            <FiList aria-hidden="true" />
 
-                    <Styled.RowWrap>
+                            <Styled.Select
+                                value={sortBy}
+                                onChange={(event) =>
+                                    setSortBy(event.target.value)
+                                }
+                                aria-label="Sort tasks"
+                            >
+                                <option value="created">Newest</option>
+
+                                <option value="dueAsc">
+                                    Due date ascending
+                                </option>
+
+                                <option value="dueDesc">
+                                    Due date descending
+                                </option>
+                            </Styled.Select>
+                        </Styled.Field>
+
+                        <Styled.SearchField>
+                            <FiSearch aria-hidden="true" />
+
+                            <input
+                                type="search"
+                                placeholder="Search tasks..."
+                                value={query}
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
+                                aria-label="Search tasks"
+                            />
+
+                            {query && (
+                                <button
+                                    type="button"
+                                    onClick={() => setQuery("")}
+                                    aria-label="Clear search"
+                                    title="Clear search"
+                                >
+                                    <FiX aria-hidden="true" />
+                                </button>
+                            )}
+                        </Styled.SearchField>
+                    </Styled.Filters>
+
+                    <Styled.BulkActions>
                         <Styled.Button
                             type="button"
+                            disabled={incompleteVisibleCount === 0}
                             onClick={() =>
                                 askConfirm({
-                                    title: "Complete visible?",
-                                    message: `Mark ${filtered.filter(t => !t.done).length} task(s) as done?`,
+                                    title: "Complete visible tasks?",
+                                    message: `Mark ${incompleteVisibleCount} visible task(s) as completed?`,
                                     confirmText: "Complete",
                                     onConfirm: markAllVisibleDone,
                                 })
                             }
                         >
+                            <FiCheckCircle aria-hidden="true" />
                             Complete visible
                         </Styled.Button>
 
                         <Styled.DangerButton
                             type="button"
+                            disabled={completedCount === 0}
                             onClick={() =>
                                 askConfirm({
-                                    title: "Clear completed?",
-                                    message: `Remove ${todos.filter(t => t.done).length} completed task(s)?`,
+                                    title: "Clear completed tasks?",
+                                    message: `Remove ${completedCount} completed task(s) permanently?`,
                                     confirmText: "Clear",
                                     tone: "danger",
                                     onConfirm: clearCompleted,
                                 })
                             }
                         >
+                            <FiTrash2 aria-hidden="true" />
                             Clear completed
                         </Styled.DangerButton>
-                    </Styled.RowWrap>
+                    </Styled.BulkActions>
                 </Styled.Toolbar>
 
+                <Styled.ResultsHeader>
+                    <div>
+                        <Styled.SectionLabel>Task List</Styled.SectionLabel>
+
+                        <h2>
+                            {filteredTodos.length} result
+                            {filteredTodos.length === 1 ? "" : "s"}
+                        </h2>
+                    </div>
+
+                    <span>
+                        {categoryFilter === "All"
+                            ? "All categories"
+                            : categoryFilter}
+                    </span>
+                </Styled.ResultsHeader>
+
                 <Styled.List>
-                    {filtered.length === 0 && (
-                        <Styled.Empty>Nothing here yet. Add your first task!</Styled.Empty>
+                    {filteredTodos.length === 0 && (
+                        <Styled.Empty>
+                            <FiList aria-hidden="true" />
+
+                            <strong>No tasks found</strong>
+
+                            <span>Add a new task or change your filters.</span>
+                        </Styled.Empty>
                     )}
 
-                    {filtered.map(item => {
-                        const dleft = daysUntil(item.due);
-                        const overdue = dleft !== null && dleft < 0 && !item.done;
+                    {filteredTodos.map((item) => {
+                        const daysLeft = daysUntil(item.due);
+
+                        const overdue =
+                            daysLeft !== null && daysLeft < 0 && !item.done;
 
                         if (editing === item.id) {
                             return (
                                 <EditRow
                                     key={item.id}
                                     item={item}
-                                    onCancel={cancelEdit}
+                                    onCancel={() => setEditing(null)}
                                     onSave={saveEdit}
                                 />
                             );
                         }
 
                         return (
-                            <Styled.Item key={item.id} $done={item.done} $overdue={overdue}>
+                            <Styled.Item
+                                key={item.id}
+                                $done={item.done}
+                                $overdue={overdue}
+                            >
                                 <Styled.ItemLeft>
-                                    <Styled.Checkbox
-                                        type="checkbox"
-                                        checked={item.done}
-                                        onChange={() => toggleDone(item.id)}
-                                        aria-label={`Mark ${item.title} ${item.done ? "not done" : "done"}`}
-                                    />
-                                    <div>
-                                        <Styled.ItemTitle $done={item.done}>{item.title}</Styled.ItemTitle>
+                                    <Styled.CheckboxLabel>
+                                        <input
+                                            type="checkbox"
+                                            checked={item.done}
+                                            onChange={() => toggleDone(item.id)}
+                                            aria-label={`Mark ${item.title} ${
+                                                item.done ? "not done" : "done"
+                                            }`}
+                                        />
+
+                                        <span>
+                                            <FiCheck aria-hidden="true" />
+                                        </span>
+                                    </Styled.CheckboxLabel>
+
+                                    <Styled.ItemContent>
+                                        <Styled.ItemTitle $done={item.done}>
+                                            {item.title}
+                                        </Styled.ItemTitle>
+
                                         <Styled.ItemMeta>
-                                            {item.category ? <Styled.Tag>#{item.category}</Styled.Tag> : <Styled.Tag tone="muted">No category</Styled.Tag>}
-                                            <span>•</span>
-                                            <span title={item.due ? item.due : "No due date"}>
-                                                {item.due ? `Due ${formatNice(item.due)}` : "No due"}
+                                            <Styled.Tag $muted={!item.category}>
+                                                <FiTag aria-hidden="true" />
+
+                                                {item.category
+                                                    ? item.category
+                                                    : "No category"}
+                                            </Styled.Tag>
+
+                                            <span className="date">
+                                                <FiCalendar aria-hidden="true" />
+
+                                                {item.due
+                                                    ? `Due ${formatDate(
+                                                          item.due,
+                                                      )}`
+                                                    : "No due date"}
                                             </span>
+
                                             {item.due && !item.done && (
-                                                <Styled.DueHint $overdue={overdue}>
-                                                    {dleft === 0 ? "Today" : dleft < 0 ? `${Math.abs(dleft)}d overdue` : `${dleft}d left`}
+                                                <Styled.DueHint
+                                                    $overdue={overdue}
+                                                >
+                                                    {daysLeft === 0
+                                                        ? "Today"
+                                                        : daysLeft < 0
+                                                          ? `${Math.abs(
+                                                                daysLeft,
+                                                            )}d overdue`
+                                                          : `${daysLeft}d left`}
                                                 </Styled.DueHint>
                                             )}
                                         </Styled.ItemMeta>
-                                    </div>
+                                    </Styled.ItemContent>
                                 </Styled.ItemLeft>
 
-                                <Styled.ItemRight>
-                                    <Styled.IconButton onClick={() => startEdit(item.id)} aria-label="Edit">✏️</Styled.IconButton>
+                                <Styled.ItemActions>
                                     <Styled.IconButton
+                                        type="button"
+                                        onClick={() => setEditing(item.id)}
+                                        aria-label={`Edit ${item.title}`}
+                                        title="Edit task"
+                                    >
+                                        <FiEdit2 aria-hidden="true" />
+                                    </Styled.IconButton>
+
+                                    <Styled.DeleteButton
+                                        type="button"
                                         onClick={() =>
                                             askConfirm({
                                                 title: "Delete task?",
-                                                message: `Delete “${item.title}” permanently?`,
+                                                message: `Delete "${item.title}" permanently?`,
                                                 confirmText: "Delete",
                                                 tone: "danger",
-                                                onConfirm: () => removeTodo(item.id),
+                                                onConfirm: () =>
+                                                    removeTodo(item.id),
                                             })
                                         }
-                                        aria-label="Delete"
+                                        aria-label={`Delete ${item.title}`}
+                                        title="Delete task"
                                     >
-                                        🗑️
-                                    </Styled.IconButton>
-                                </Styled.ItemRight>
+                                        <FiTrash2 aria-hidden="true" />
+                                    </Styled.DeleteButton>
+                                </Styled.ItemActions>
                             </Styled.Item>
                         );
                     })}
                 </Styled.List>
 
-                <Styled.FooterNote>
-                    Data stays in your browser (localStorage). Refresh-safe.
-                </Styled.FooterNote>
-
-                {/* Confirm Modal */}
-                {confirm && (
-                    <Styled.ModalOverlay onClick={() => setConfirm(null)}>
-                        <Styled.ModalCard
-                            role="dialog"
-                            aria-modal="true"
-                            aria-labelledby="confirm-title"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <Styled.ModalTitle id="confirm-title">
-                                {confirm.title}
-                            </Styled.ModalTitle>
-
-                            {confirm.message ? (
-                                <Styled.ModalMessage>{confirm.message}</Styled.ModalMessage>
-                            ) : null}
-
-                            <Styled.ModalActions>
-                                <Styled.Button type="button" onClick={() => setConfirm(null)}>
-                                    {confirm.cancelText || "Cancel"}
-                                </Styled.Button>
-
-                                {confirm.tone === "danger" ? (
-                                    <Styled.DangerButton type="button" onClick={handleConfirm} autoFocus>
-                                        {confirm.confirmText || "Confirm"}
-                                    </Styled.DangerButton>
-                                ) : (
-                                    <Styled.PrimaryButton type="button" onClick={handleConfirm} autoFocus>
-                                        {confirm.confirmText || "Confirm"}
-                                    </Styled.PrimaryButton>
-                                )}
-                            </Styled.ModalActions>
-                        </Styled.ModalCard>
-                    </Styled.ModalOverlay>
-                )}
+                <Styled.StorageNote>
+                    <FiDatabase aria-hidden="true" />
+                    Tasks are stored locally in this browser using localStorage.
+                </Styled.StorageNote>
             </Styled.Container>
+
+            {confirm && (
+                <ConfirmModal
+                    title={confirm.title}
+                    message={confirm.message}
+                    confirmText={confirm.confirmText}
+                    cancelText={confirm.cancelText}
+                    tone={confirm.tone}
+                    onConfirm={handleConfirm}
+                    onCancel={closeConfirm}
+                />
+            )}
         </Styled.Page>
     );
-}
+};
 
-function EditRow({ item, onCancel, onSave }) {
-    const [t, setT] = useState(item.title);
-    const [c, setC] = useState(item.category || "");
-    const [d, setD] = useState(item.due || "");
+const EditRow = ({ item, onCancel, onSave }) => {
+    const [title, setTitle] = useState(item.title);
+
+    const [category, setCategory] = useState(item.category || "");
+
+    const [due, setDue] = useState(item.due || "");
+
+    const handleSubmit = (event) => {
+        event.preventDefault();
+
+        const cleanTitle = title.trim();
+
+        if (!cleanTitle) {
+            return;
+        }
+
+        onSave(item.id, {
+            title: cleanTitle,
+            category: category.trim(),
+            due,
+        });
+    };
 
     return (
-        <Styled.Item as="form" onSubmit={(e) => { e.preventDefault(); if (!t.trim()) return; onSave(item.id, { title: t.trim(), category: c.trim(), due: d }); }}>
-            <Styled.ItemLeft style={{ alignItems: "center" }}>
+        <Styled.EditItem as="form" onSubmit={handleSubmit}>
+            <Styled.EditFields>
                 <Styled.Input
-                    value={t}
-                    onChange={(e) => setT(e.target.value)}
-                    aria-label="Edit title"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    aria-label="Edit task title"
                     placeholder="Title *"
                     required
+                    autoFocus
                 />
+
                 <Styled.Input
-                    value={c}
-                    onChange={(e) => setC(e.target.value)}
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
                     aria-label="Edit category"
                     placeholder="Category"
-                    style={{ maxWidth: 180 }}
                 />
+
                 <Styled.Input
                     type="date"
-                    value={d}
-                    onChange={(e) => setD(e.target.value)}
+                    value={due}
+                    onChange={(event) => setDue(event.target.value)}
                     aria-label="Edit due date"
-                    style={{ maxWidth: 160 }}
                 />
-            </Styled.ItemLeft>
-            <Styled.ItemRight>
-                <Styled.PrimaryButton type="submit">Save</Styled.PrimaryButton>
-                <Styled.Button type="button" onClick={onCancel}>Cancel</Styled.Button>
-            </Styled.ItemRight>
-        </Styled.Item>
+            </Styled.EditFields>
+
+            <Styled.EditActions>
+                <Styled.PrimaryButton type="submit" disabled={!title.trim()}>
+                    <FiCheck aria-hidden="true" />
+                    Save
+                </Styled.PrimaryButton>
+
+                <Styled.Button type="button" onClick={onCancel}>
+                    <FiX aria-hidden="true" />
+                    Cancel
+                </Styled.Button>
+            </Styled.EditActions>
+        </Styled.EditItem>
     );
-}
+};
+
+export default TodoListCrud;

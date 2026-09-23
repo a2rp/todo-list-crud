@@ -1,16 +1,22 @@
-import React from 'react'
-import About from './components/about'
-import ScrollToTopButton from './components/scrollToTopButton'
-import TodoListCrud from './components/todoListCrud'
+import BackToTop from "./components/backToTop";
+import Footer from "./components/footer";
+import Header from "./components/header";
+import TodoListCrud from "./components/todoListCrud";
 
 const App = () => {
     return (
         <>
-            <TodoListCrud />
-            <About />
-            <ScrollToTopButton />
-        </>
-    )
-}
+            <div id="top" />
 
-export default App
+            <Header />
+
+            <TodoListCrud />
+
+            <Footer />
+
+            <BackToTop />
+        </>
+    );
+};
+
+export default App;
